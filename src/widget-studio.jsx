@@ -62,7 +62,7 @@ if (typeof window !== "undefined" && !window.storage) {
 // Faceit Client-side API key. Rotate this when going to production
 // and route calls through a Node backend so the key isn't in the bundle.
 // ============================================================
-const FACEIT_API_KEY = "f9d1c9d6-548a-44c2-8b03-a69baac4d705";
+export const FACEIT_API_KEY = "f9d1c9d6-548a-44c2-8b03-a69baac4d705";
 
 const FACEIT_BASE = "https://open.faceit.com/data/v4";
 
@@ -91,7 +91,7 @@ const GOOGLE_FONTS = [
 // ============================================================
 // Builtin Templates
 // ============================================================
-const BUILTIN_TEMPLATES = [
+export const BUILTIN_TEMPLATES = [
   { id: "tpl-neon",   name: "Neon Pulse",    design: "neon",   defaultAccent: "#ff00ea", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Cyberpunk · scan lines · glow" },
   { id: "tpl-brutal", name: "Brutal Mono",   design: "brutal", defaultAccent: "#d9f99d", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Hard shadows · raw type" },
   { id: "tpl-anime",  name: "Anime Burst",   design: "anime",  defaultAccent: "#ff6ec7", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Gacha card · iridescent · burst aura" },
@@ -103,7 +103,7 @@ const DESIGN_ICONS = { neon: Zap, brutal: Square, anime: Sparkles, pixel: Gamepa
 // ============================================================
 // Hooks
 // ============================================================
-const useBaseFonts = () => {
+export const useBaseFonts = () => {
   useEffect(() => {
     const id = "widget-studio-fonts";
     if (document.getElementById(id)) return;
@@ -116,7 +116,7 @@ const useBaseFonts = () => {
   }, []);
 };
 
-const useGoogleFont = (fontName) => {
+export const useGoogleFont = (fontName) => {
   useEffect(() => {
     if (!fontName) return;
     const family = fontName.replace(/ /g, "+");
@@ -155,7 +155,7 @@ const useCountUp = (target, duration = 1200, deps = []) => {
 // ============================================================
 // Faceit API
 // ============================================================
-async function fetchFaceitPlayer(nickname) {
+export async function fetchFaceitPlayer(nickname) {
   if (!nickname || !FACEIT_API_KEY) throw new Error("Missing nickname or API key");
   const headers = { Authorization: `Bearer ${FACEIT_API_KEY}` };
 
@@ -787,7 +787,7 @@ const PixelArcade = ({ data, accent, mp4Url, mp4Enabled, customFont, customizati
   );
 };
 
-const DESIGN_COMPONENTS = {
+export const DESIGN_COMPONENTS = {
   neon: NeonPulse,
   brutal: Brutalist,
   anime: AnimeBurst,
@@ -1782,8 +1782,13 @@ export default function WidgetStudio() {
 
   const embedUrl = (() => {
     const params = new URLSearchParams();
-    params.set("template", templateId);
+    // Emit resolved design + assets so the URL is self-contained and doesn't
+    // require the widget renderer to look up template state from localStorage.
+    params.set("design", template.design);
     params.set("accent", accent);
+    if (template.mp4Url && !template.mp4Url.startsWith("blob:")) {
+      params.set("bg", template.mp4Url);
+    }
     if (font) params.set("font", font);
     if (customization.displayName?.trim()) params.set("name", customization.displayName.trim());
     if (customization.scale !== 1) params.set("scale", customization.scale.toFixed(2));
@@ -1794,7 +1799,11 @@ export default function WidgetStudio() {
     if (customization.bgTint !== 1) params.set("tint", customization.bgTint.toFixed(2));
     if (customization.winColor !== "#22ff88") params.set("win", customization.winColor);
     if (customization.lossColor !== "#ff4444") params.set("loss", customization.lossColor);
-    return `https://yourdomain.com/widget/${encodeURIComponent(nickname)}?${params.toString()}`;
+    // Use the current site's origin so the URL works wherever this is hosted
+    const origin = typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://yourdomain.com";
+    return `${origin}/widget/${encodeURIComponent(nickname)}?${params.toString()}`;
   })();
 
   const copy = () => {
