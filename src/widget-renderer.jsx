@@ -41,6 +41,8 @@ export default function WidgetRenderer() {
   const bgTint = parseFloat(params.get("tint") || "1") || 1;
   const winColor = params.get("win") || "#22ff88";
   const lossColor = params.get("loss") || "#ff4444";
+  const nicknameColor = params.get("nick_color") || "";
+  const kdrColor = params.get("kdr_color") || "";
 
   useGoogleFont(font);
 
@@ -94,6 +96,8 @@ export default function WidgetRenderer() {
     bgTint,
     winColor,
     lossColor,
+    nicknameColor,
+    kdrColor,
   };
 
   // Inject animation killer when needed

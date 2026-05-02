@@ -24,7 +24,9 @@ import {
   UserCog,
   Crown,
   Eye,
+  Share2,
 } from "lucide-react";
+import { SHARED_TEMPLATES } from "./shared-templates.js";
 
 // Polyfill window.storage with localStorage when running outside Claude.ai.
 // Real Claude.ai environments inject their own window.storage which we leave alone.
@@ -92,11 +94,13 @@ const GOOGLE_FONTS = [
 // Builtin Templates
 // ============================================================
 export const BUILTIN_TEMPLATES = [
-  { id: "tpl-neon",   name: "Neon Pulse",    design: "neon",   defaultAccent: "#ff00ea", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Cyberpunk · scan lines · glow" },
-  { id: "tpl-brutal", name: "Brutal Mono",   design: "brutal", defaultAccent: "#d9f99d", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Hard shadows · raw type" },
-  { id: "tpl-anime",  name: "Anime Burst",   design: "anime",  defaultAccent: "#ff6ec7", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Gacha card · iridescent · burst aura" },
-  { id: "tpl-pixel",  name: "Pixel Arcade",  design: "pixel",  defaultAccent: "#fbbf24", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "8-bit · chunky · arcade" },
+  { id: "tpl-neon",   name: "Neon Pulse",    design: "neon",   category: "Cyberpunk", defaultAccent: "#ff00ea", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Cyberpunk · scan lines · glow" },
+  { id: "tpl-brutal", name: "Brutal Mono",   design: "brutal", category: "Minimal",   defaultAccent: "#d9f99d", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Hard shadows · raw type" },
+  { id: "tpl-anime",  name: "Anime Burst",   design: "anime",  category: "Gaming",    defaultAccent: "#ff6ec7", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "Gacha card · iridescent · burst aura" },
+  { id: "tpl-pixel",  name: "Pixel Arcade",  design: "pixel",  category: "Gaming",    defaultAccent: "#fbbf24", mp4Url: "", defaultFont: "", builtin: true, price: 0, desc: "8-bit · chunky · arcade" },
 ];
+
+const CATEGORIES = ["All", "Cyberpunk", "Gaming", "Minimal", "Custom"];
 
 const DESIGN_ICONS = { neon: Zap, brutal: Square, anime: Sparkles, pixel: Gamepad2 };
 
@@ -246,6 +250,24 @@ async function searchFaceitPlayers(partial) {
 // ============================================================
 // Visual primitives
 // ============================================================
+// Official Faceit skill icons from their CDN. Used by Faceit themselves
+// at faceit.com. Falls back to the SVG LevelShield if the image fails to load.
+const FaceitLevelIcon = ({ level, size = 28 }) => {
+  const [errored, setErrored] = useState(false);
+  const safe = Math.min(10, Math.max(1, level || 1));
+  if (errored) return <LevelShield level={safe} size={size} />;
+  return (
+    <img
+      src={`https://cdn.faceit.com/frontend/159/assets/images/skill-icons/skill_level_${safe}_md.png`}
+      alt={`Faceit level ${safe}`}
+      width={size}
+      height={size}
+      onError={() => setErrored(true)}
+      style={{ display: "block", objectFit: "contain" }}
+    />
+  );
+};
+
 const LevelShield = ({ level, size = 56, glow }) => {
   const colors = {
     1: "#EAEAEA", 2: "#7CD16B", 3: "#7CD16B", 4: "#FFC107", 5: "#FFC107",
@@ -304,6 +326,8 @@ const NeonPulse = ({ data, accent, mp4Url, mp4Enabled, customFont, customization
   const overlayOpacity = mp4Enabled ? Math.max(0.15, 0.55 * tint) : 1;
   const winColor = customization.winColor || "#22ff88";
   const lossColor = customization.lossColor || "#ff4444";
+  const nicknameColor = customization.nicknameColor || "#ffffff";
+  const kdrColor = customization.kdrColor || "#ffffff";
   return (
     <div className="relative w-[440px] h-[140px] overflow-hidden"
       style={{
@@ -339,8 +363,8 @@ const NeonPulse = ({ data, accent, mp4Url, mp4Enabled, customFont, customization
           <div className="text-[11px] tracking-[0.4em] mb-1" style={{ color: accent, textShadow: `0 0 8px ${accent}` }}>
             FACEIT // LVL {data.level}
           </div>
-          <div className="text-white text-[22px] font-bold tracking-wider truncate"
-            style={{ textShadow: `0 0 12px ${accent}aa`, fontFamily: titleFont }}>
+          <div className="text-[22px] font-bold tracking-wider truncate"
+            style={{ color: nicknameColor, textShadow: `0 0 12px ${accent}aa`, fontFamily: titleFont }}>
             {data.nickname.toUpperCase()}
           </div>
           <div className="flex items-baseline gap-2 mt-0.5">
@@ -361,7 +385,7 @@ const NeonPulse = ({ data, accent, mp4Url, mp4Enabled, customFont, customization
           <div className="flex flex-col gap-1.5 text-right">
             <div className="flex items-center gap-2 justify-end">
               <span className="text-white/40 text-[9px] tracking-[0.25em]">K/D</span>
-              <span className="text-white text-sm font-bold tabular-nums">{data.kdr.toFixed(2)}</span>
+              <span className="text-sm font-bold tabular-nums" style={{ color: kdrColor }}>{data.kdr.toFixed(2)}</span>
             </div>
             <div className="flex items-center gap-2 justify-end">
               <span className="text-white/40 text-[9px] tracking-[0.25em]">W/L</span>
@@ -388,6 +412,10 @@ const Brutalist = ({ data, accent, mp4Url, mp4Enabled, customFont, customization
   const overlayOpacity = mp4Enabled ? Math.max(0.3, 0.92 * tint) : 1;
   const winColor = customization.winColor || "#84cc16";
   const lossColor = customization.lossColor || "#fb7185";
+  // Brutalist defaults to black-on-accent for the nickname/KDR; only override
+  // when the user has explicitly picked a color in the customizer.
+  const nicknameColor = customization.nicknameColor || "#000000";
+  const kdrColor = customization.kdrColor || "#ffffff";
   return (
     <div className="relative w-[440px] h-[140px]" style={{ fontFamily: "Archivo Black, sans-serif" }}>
       {mp4Enabled && <MP4Background url={mp4Url} design="brutal" />}
@@ -412,8 +440,8 @@ const Brutalist = ({ data, accent, mp4Url, mp4Enabled, customFont, customization
           <LevelShield level={data.level} size={56} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-black text-[28px] leading-none uppercase truncate"
-            style={{ fontFamily: titleFont, letterSpacing: "0.02em" }}>
+          <div className="text-[28px] leading-none uppercase truncate"
+            style={{ color: nicknameColor, fontFamily: titleFont, letterSpacing: "0.02em" }}>
             {data.nickname}
           </div>
           <div className="flex items-baseline gap-2 mt-1">
@@ -435,8 +463,8 @@ const Brutalist = ({ data, accent, mp4Url, mp4Enabled, customFont, customization
         </div>
         {showStats && (
           <div className="text-right">
-            <div className="bg-black text-white px-2 py-1 text-[11px] tracking-widest mb-1"
-              style={{ fontFamily: "JetBrains Mono, monospace" }}>
+            <div className="bg-black px-2 py-1 text-[11px] tracking-widest mb-1"
+              style={{ color: kdrColor, fontFamily: "JetBrains Mono, monospace" }}>
               K/D {data.kdr.toFixed(2)}
             </div>
             <div className="flex gap-1">
@@ -471,6 +499,8 @@ const AnimeBurst = ({ data, accent, mp4Url, mp4Enabled, customFont, customizatio
   const tintAlpha = Math.max(0.15, 0.55 * tint);
   const winColor = customization.winColor || "#4ade80";
   const lossColor = customization.lossColor || "#f472b6";
+  const nicknameColor = customization.nicknameColor || "#ffffff";
+  const kdrColor = customization.kdrColor || "#ffffff";
 
   return (
     <div className="w-[440px] h-[140px] rounded-xl p-[2px] overflow-hidden relative"
@@ -577,8 +607,9 @@ const AnimeBurst = ({ data, accent, mp4Url, mp4Enabled, customFont, customizatio
               </span>
             </div>
 
-            <div className="text-white text-[24px] leading-none truncate uppercase"
+            <div className="text-[24px] leading-none truncate uppercase"
               style={{
+                color: nicknameColor,
                 fontFamily: titleFont,
                 letterSpacing: '0.04em',
                 textShadow: `0 0 14px ${accent}cc, 2px 2px 0 #000, -1px 1px 0 #000`,
@@ -636,7 +667,7 @@ const AnimeBurst = ({ data, accent, mp4Url, mp4Enabled, customFont, customizatio
                   }}>{data.losses}L</span>
               </div>
               <div className="text-white/70 text-[10px] tabular-nums">
-                K/D <span className="text-white font-bold" style={{ fontFamily: titleFont }}>{data.kdr.toFixed(2)}</span>
+                K/D <span className="font-bold" style={{ color: kdrColor, fontFamily: titleFont }}>{data.kdr.toFixed(2)}</span>
               </div>
             </div>
           )}
@@ -655,6 +686,8 @@ const PixelArcade = ({ data, accent, mp4Url, mp4Enabled, customFont, customizati
   const overlayOpacity = mp4Enabled ? Math.max(0.3, 0.88 * tint) : 1;
   const winColor = customization.winColor || "#4ade80";
   const lossColor = customization.lossColor || "#f87171";
+  const nicknameColor = customization.nicknameColor || "#ffffff";
+  const kdrColor = customization.kdrColor || "#aaaaaa";
   return (
     <div className="relative w-[440px] h-[140px]" style={{ fontFamily: '"VT323", monospace' }}>
       {mp4Enabled && <MP4Background url={mp4Url} design="pixel" />}
@@ -709,7 +742,7 @@ const PixelArcade = ({ data, accent, mp4Url, mp4Enabled, customFont, customizati
           <div className="truncate" style={{
             fontFamily: nickFont,
             fontSize: 26,
-            color: "#fff",
+            color: nicknameColor,
             lineHeight: 1,
             textShadow: "2px 2px 0 #000",
           }}>
@@ -774,7 +807,7 @@ const PixelArcade = ({ data, accent, mp4Url, mp4Enabled, customFont, customizati
             <div style={{
               fontFamily: '"VT323", monospace',
               fontSize: 16,
-              color: "#aaa",
+              color: kdrColor,
               marginTop: 4,
               lineHeight: 1,
             }}>
@@ -914,8 +947,7 @@ function NicknameSearch({ value, onChange, accent, onResolved }) {
                   )}
                 </div>
                 {lvl && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <LevelShield level={lvl} size={26} />
+                  <div className="flex items-center gap-2 shrink-0">
                     {typeof elo === "number" && elo > 0 && (
                       <div className="flex flex-col items-end leading-none">
                         <span className="text-white text-xs font-bold tabular-nums"
@@ -928,6 +960,7 @@ function NicknameSearch({ value, onChange, accent, onResolved }) {
                         </span>
                       </div>
                     )}
+                    <FaceitLevelIcon level={lvl} size={28} />
                   </div>
                 )}
               </button>
@@ -1153,15 +1186,45 @@ function Paywall({ template, onClose, onUnlock }) {
 // ============================================================
 // Admin Panel
 // ============================================================
-function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, status, isAdmin, setIsAdmin, unlockedIds, clearUnlocks }) {
+function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, status, isAdmin, setIsAdmin, unlockedIds, clearUnlocks, sharedTemplates }) {
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [publishedSnippet, setPublishedSnippet] = useState(null);
+
+  const publishTemplate = (t) => {
+    // Strip blob: URLs — they won't work for other users
+    const safe = { ...t };
+    delete safe._fileName;
+    delete safe._fileSize;
+    if (safe.mp4Url?.startsWith("blob:")) {
+      safe.mp4Url = "";
+      safe._needsCdnUrl = true;
+    }
+    const sharedId = safe.id.startsWith("tpl-shared-")
+      ? safe.id
+      : `tpl-shared-${safe.id.replace(/^tpl-/, "")}`;
+    const obj = {
+      id: sharedId,
+      name: safe.name,
+      design: safe.design,
+      category: safe.category || "Custom",
+      defaultAccent: safe.defaultAccent,
+      defaultFont: safe.defaultFont || "",
+      mp4Url: safe.mp4Url || "",
+      price: safe.price ?? 0,
+      desc: safe.desc || "",
+    };
+    const snippet = "  " + JSON.stringify(obj, null, 2).replace(/\n/g, "\n  ") + ",";
+    try { navigator.clipboard?.writeText(snippet); } catch {}
+    setPublishedSnippet({ snippet, name: safe.name, hadBlob: !!safe._needsCdnUrl });
+  };
 
   const startNew = () => {
     setEditing({
       id: `tpl-${Date.now()}`,
       name: "",
       design: "neon",
+      category: "Custom",
       defaultAccent: "#ff00ea",
       mp4Url: "",
       defaultFont: "",
@@ -1321,8 +1384,9 @@ function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, sta
                 Templates
               </div>
               <p className="text-[11px] text-white/40 mt-1 leading-relaxed">
-                Bundle a design + accent + MP4 + font + price. Custom templates can be free or paid;
-                builtins are always free. Users override accent &amp; font but not the background.
+                Bundle a design + accent + MP4 + font + price. Builtins are always free.
+                Per-browser custom templates are visible only to you — click the share icon
+                to publish them globally to all visitors via <code className="text-white/60">shared-templates.js</code>.
               </p>
             </div>
             <button
@@ -1338,9 +1402,14 @@ function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, sta
           </div>
 
           <div className="space-y-2">
-            {[...BUILTIN_TEMPLATES, ...customTemplates].map((t) => {
+            {[
+              ...BUILTIN_TEMPLATES,
+              ...(sharedTemplates || []).map(t => ({ ...t, shared: true })),
+              ...customTemplates,
+            ].map((t) => {
               const Icon = DESIGN_ICONS[t.design] || Square;
-              const isPaid = !t.builtin && (t.price ?? 0) > 0;
+              const isPaid = !t.builtin && !t.shared && (t.price ?? 0) > 0;
+              const sharedAndPaid = t.shared && (t.price ?? 0) > 0;
               return (
                 <div key={t.id}
                   className="flex items-center gap-3 p-3 rounded-lg"
@@ -1358,13 +1427,19 @@ function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, sta
                           BUILTIN
                         </span>
                       )}
-                      {isPaid && (
-                        <span className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded flex items-center gap-1"
-                          style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24", fontFamily: "JetBrains Mono, monospace" }}>
-                          <Crown size={9} /> ${t.price.toFixed(2)}
+                      {t.shared && (
+                        <span className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded"
+                          style={{ background: "rgba(94, 234, 212, 0.15)", color: "#5eead4", fontFamily: "JetBrains Mono, monospace" }}>
+                          SHARED
                         </span>
                       )}
-                      {!t.builtin && !isPaid && (
+                      {(isPaid || sharedAndPaid) && (
+                        <span className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded flex items-center gap-1"
+                          style={{ background: "rgba(251, 191, 36, 0.15)", color: "#fbbf24", fontFamily: "JetBrains Mono, monospace" }}>
+                          <Crown size={9} /> ${(t.price || 0).toFixed(2)}
+                        </span>
+                      )}
+                      {!t.builtin && !t.shared && !isPaid && (
                         <span className="text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded"
                           style={{ background: "rgba(52, 211, 153, 0.15)", color: "#34d399", fontFamily: "JetBrains Mono, monospace" }}>
                           FREE
@@ -1374,11 +1449,16 @@ function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, sta
                     </div>
                     <div className="text-[10px] text-white/40 mt-0.5 truncate"
                       style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                      {t.design} · {t.defaultAccent}{t.defaultFont ? ` · ${t.defaultFont}` : ""}{t.mp4Url ? (t.mp4Url.startsWith("blob:") ? ` · uploaded` : ` · video`) : ""}
+                      {t.design}{t.category ? ` · ${t.category}` : ""} · {t.defaultAccent}{t.defaultFont ? ` · ${t.defaultFont}` : ""}{t.mp4Url ? (t.mp4Url.startsWith("blob:") ? ` · uploaded` : ` · video`) : ""}
                     </div>
                   </div>
-                  {!t.builtin && (
+                  {!t.builtin && !t.shared && (
                     <>
+                      <button onClick={() => publishTemplate(t)}
+                        className="p-1.5 rounded text-white/60 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+                        title="Publish globally — copies a snippet to paste into shared-templates.js">
+                        <Share2 size={13} />
+                      </button>
                       <button onClick={() => startEdit(t)}
                         className="p-1.5 rounded text-white/60 hover:text-white hover:bg-white/5 transition-colors">
                         <Pencil size={13} />
@@ -1393,6 +1473,63 @@ function AdminPanel({ onClose, customTemplates, saveCustomTemplates, onTest, sta
               );
             })}
           </div>
+
+          {publishedSnippet && (
+            <div className="mt-3 p-4 rounded-lg space-y-3"
+              style={{
+                background: "rgba(94, 234, 212, 0.05)",
+                border: "1px solid rgba(94, 234, 212, 0.3)",
+              }}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] tracking-[0.3em] uppercase text-emerald-300"
+                    style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                    Snippet copied to clipboard ✓
+                  </div>
+                  <p className="text-[11px] text-white/60 mt-1 leading-relaxed">
+                    Paste it into <code className="text-white/80">src/shared-templates.js</code> inside
+                    the <code className="text-white/80">SHARED_TEMPLATES</code> array, commit, and push.
+                    Vercel will redeploy in ~60s and every visitor will see "{publishedSnippet.name}".
+                  </p>
+                </div>
+                <button onClick={() => setPublishedSnippet(null)}
+                  className="text-white/40 hover:text-white shrink-0">
+                  <X size={16} />
+                </button>
+              </div>
+              {publishedSnippet.hadBlob && (
+                <div className="flex items-start gap-2 p-2 rounded text-[10px] leading-relaxed"
+                  style={{ background: "rgba(251, 191, 36, 0.08)", border: "1px solid rgba(251, 191, 36, 0.2)" }}>
+                  <AlertCircle size={11} className="text-amber-400 mt-0.5 shrink-0" />
+                  <span className="text-amber-200/80">
+                    The MP4 was an uploaded blob URL — uploaded files only exist in your browser.
+                    Before pasting, upload the video to a CDN (S3, Cloudflare R2, Bunny, etc.) and
+                    fill in <code>mp4Url</code> with the public HTTPS URL.
+                  </span>
+                </div>
+              )}
+              <pre className="text-[10px] text-white/70 p-3 rounded overflow-auto max-h-40"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  fontFamily: "JetBrains Mono, monospace",
+                  whiteSpace: "pre",
+                }}>
+{publishedSnippet.snippet}
+              </pre>
+              <button
+                onClick={() => { try { navigator.clipboard?.writeText(publishedSnippet.snippet); } catch {} }}
+                className="text-[10px] tracking-[0.3em] uppercase px-3 py-1.5 rounded"
+                style={{
+                  background: "rgba(94, 234, 212, 0.15)",
+                  color: "#5eead4",
+                  fontFamily: "JetBrains Mono, monospace",
+                }}>
+                <Copy size={10} className="inline mr-1.5" />
+                Copy again
+              </button>
+            </div>
+          )}
 
           {editing && (
             <TemplateEditor
@@ -1553,6 +1690,19 @@ function TemplateEditor({ template, isNew, onSave, onCancel }) {
 
       <div>
         <label className="text-[10px] tracking-[0.3em] uppercase text-white/50 block mb-1"
+          style={{ fontFamily: "JetBrains Mono, monospace" }}>Category</label>
+        <select value={t.category || "Custom"}
+          onChange={(e) => update("category", e.target.value)}
+          className="w-full bg-black/40 text-white p-2 rounded outline-none border text-sm"
+          style={{ borderColor: "rgba(255,255,255,0.1)", fontFamily: "Space Grotesk, sans-serif" }}>
+          {CATEGORIES.filter(c => c !== "All").map((c) => (
+            <option key={c} value={c} style={{ background: "#0a0a0a" }}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[10px] tracking-[0.3em] uppercase text-white/50 block mb-1"
           style={{ fontFamily: "JetBrains Mono, monospace" }}>Default Font</label>
         <select value={t.defaultFont}
           onChange={(e) => update("defaultFont", e.target.value)}
@@ -1632,6 +1782,7 @@ export default function WidgetStudio() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [unlockedIds, setUnlockedIds] = useState([]);
   const [paywallTemplate, setPaywallTemplate] = useState(null);
+  const [categoryFilter, setCategoryFilter] = useState("All");
 
   // ====== User customization ======
   const DEFAULT_CUSTOMIZATION = {
@@ -1644,6 +1795,8 @@ export default function WidgetStudio() {
     bgTint: 1.0,          // 0.1-1.0, multiplier on each design's overlay opacity
     winColor: "#22ff88",  // wins / positive elo change
     lossColor: "#ff4444", // losses / negative elo change
+    nicknameColor: "",    // empty = design default (white in most, black in brutal)
+    kdrColor: "",         // empty = design default
   };
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
   const updateCustom = useCallback((patch) => {
@@ -1723,7 +1876,10 @@ export default function WidgetStudio() {
     try { await window.storage?.set?.("unlocked_template_ids", JSON.stringify([])); } catch {}
   }, []);
 
-  const allTemplates = [...BUILTIN_TEMPLATES, ...customTemplates];
+  // Mark shared templates so the gallery and admin list can label them
+  // and disable per-browser editing.
+  const sharedAnnotated = SHARED_TEMPLATES.map((t) => ({ ...t, shared: true, builtin: false }));
+  const allTemplates = [...BUILTIN_TEMPLATES, ...sharedAnnotated, ...customTemplates];
 
   // Whether a template requires payment for the current user
   const isLocked = useCallback((t) => {
@@ -1799,6 +1955,8 @@ export default function WidgetStudio() {
     if (customization.bgTint !== 1) params.set("tint", customization.bgTint.toFixed(2));
     if (customization.winColor !== "#22ff88") params.set("win", customization.winColor);
     if (customization.lossColor !== "#ff4444") params.set("loss", customization.lossColor);
+    if (customization.nicknameColor) params.set("nick_color", customization.nicknameColor);
+    if (customization.kdrColor) params.set("kdr_color", customization.kdrColor);
     // Use the current site's origin so the URL works wherever this is hosted
     const origin = typeof window !== "undefined" && window.location?.origin
       ? window.location.origin
@@ -1875,12 +2033,39 @@ export default function WidgetStudio() {
 
         {/* Template Gallery */}
         <div className="mb-8">
-          <div className="text-[10px] tracking-[0.3em] uppercase text-white/40 mb-3"
-            style={{ fontFamily: "JetBrains Mono, monospace" }}>
-            Templates · {allTemplates.length} available
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <div className="text-[10px] tracking-[0.3em] uppercase text-white/40"
+              style={{ fontFamily: "JetBrains Mono, monospace" }}>
+              Templates · {allTemplates.length} available
+            </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              {CATEGORIES.map((cat) => {
+                const count = cat === "All"
+                  ? allTemplates.length
+                  : allTemplates.filter((t) => (t.category || "Custom") === cat).length;
+                if (count === 0 && cat !== "All") return null;
+                const active = categoryFilter === cat;
+                return (
+                  <button key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    className="px-3 py-1 rounded-full text-xs transition-colors"
+                    style={{
+                      background: active ? `${accent}22` : "rgba(255,255,255,0.04)",
+                      color: active ? accent : "rgba(255,255,255,0.55)",
+                      border: `1px solid ${active ? accent : "rgba(255,255,255,0.08)"}`,
+                      fontFamily: "JetBrains Mono, monospace",
+                      letterSpacing: "0.1em",
+                    }}>
+                    {cat} <span className="opacity-60">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {allTemplates.map((t) => {
+            {allTemplates
+              .filter((t) => categoryFilter === "All" || (t.category || "Custom") === categoryFilter)
+              .map((t) => {
               const Icon = DESIGN_ICONS[t.design] || Square;
               const active = t.id === templateId;
               const locked = isLocked(t);
@@ -1936,9 +2121,12 @@ export default function WidgetStudio() {
                       </span>
                     )}
                     {!t.builtin && !isPaid && (
-                      <span className="text-[8px] tracking-widest text-white/30 uppercase"
-                        style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                        custom
+                      <span className="text-[8px] tracking-widest uppercase"
+                        style={{
+                          color: t.shared ? "#5eead4" : "rgba(255,255,255,0.3)",
+                          fontFamily: "JetBrains Mono, monospace",
+                        }}>
+                        {t.shared ? "shared" : "custom"}
                       </span>
                     )}
                   </div>
@@ -2038,16 +2226,24 @@ export default function WidgetStudio() {
 
             {/* Accent — primary brand color, with curated swatches */}
             <div className="flex items-center gap-2 flex-wrap">
-              {[template.defaultAccent, "#ff00ea", "#00ffea", "#fbbf24", "#84cc16", "#a78bfa", "#f472b6"].map((c, i) => (
-                <button key={c + i}
-                  onClick={() => setAccent(c)}
-                  className="w-7 h-7 rounded-full transition-transform hover:scale-110"
-                  style={{
-                    background: c,
-                    boxShadow: accent === c ? `0 0 0 2px #000, 0 0 0 4px ${c}, 0 0 12px ${c}` : "none",
-                  }}
-                  aria-label={c} />
-              ))}
+              {(() => {
+                // Dedupe so the template's default doesn't appear twice
+                // when it overlaps with one of the curated swatches.
+                const presets = ["#ff00ea", "#00ffea", "#fbbf24", "#84cc16", "#a78bfa", "#f472b6"];
+                const all = [template.defaultAccent, ...presets.filter(c => c.toLowerCase() !== template.defaultAccent.toLowerCase())];
+                return all.map((c) => (
+                  <button key={c}
+                    onClick={() => setAccent(c)}
+                    className="w-7 h-7 rounded-full transition-transform hover:scale-110"
+                    style={{
+                      background: c,
+                      boxShadow: accent.toLowerCase() === c.toLowerCase()
+                        ? `0 0 0 2px #000, 0 0 0 4px ${c}, 0 0 12px ${c}`
+                        : "none",
+                    }}
+                    aria-label={c} />
+                ));
+              })()}
               <input type="color" value={accent} onChange={(e) => setAccent(e.target.value)}
                 className="w-7 h-7 rounded-full bg-transparent cursor-pointer border-0"
                 style={{ padding: 0 }} />
@@ -2057,7 +2253,7 @@ export default function WidgetStudio() {
               </span>
             </div>
 
-            {/* Win / Loss — semantic colors */}
+            {/* Win / Loss */}
             <div className="mt-3 pt-3 grid grid-cols-2 gap-3"
               style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
               <div className="flex items-center gap-2">
@@ -2085,6 +2281,47 @@ export default function WidgetStudio() {
                   <div className="text-[9px] text-white/40 tabular-nums"
                     style={{ fontFamily: "JetBrains Mono, monospace" }}>
                     {customization.lossColor.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Nickname / K/D Number */}
+            <div className="mt-3 pt-3 grid grid-cols-2 gap-3"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex items-center gap-2">
+                <input type="color" value={customization.nicknameColor || "#ffffff"}
+                  onChange={(e) => updateCustom({ nicknameColor: e.target.value })}
+                  className="w-7 h-7 rounded-full bg-transparent cursor-pointer border-0 shrink-0"
+                  style={{ padding: 0 }} />
+                <div className="min-w-0">
+                  <div className="text-[9px] tracking-[0.3em] uppercase text-white/50"
+                    style={{ fontFamily: "JetBrains Mono, monospace" }}>Nickname</div>
+                  <div className="flex items-center gap-1.5 text-[9px] text-white/40 tabular-nums"
+                    style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                    {customization.nicknameColor ? customization.nicknameColor.toUpperCase() : "default"}
+                    {customization.nicknameColor && (
+                      <button onClick={() => updateCustom({ nicknameColor: "" })}
+                        className="text-white/40 hover:text-white" aria-label="reset">×</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="color" value={customization.kdrColor || "#ffffff"}
+                  onChange={(e) => updateCustom({ kdrColor: e.target.value })}
+                  className="w-7 h-7 rounded-full bg-transparent cursor-pointer border-0 shrink-0"
+                  style={{ padding: 0 }} />
+                <div className="min-w-0">
+                  <div className="text-[9px] tracking-[0.3em] uppercase text-white/50"
+                    style={{ fontFamily: "JetBrains Mono, monospace" }}>K/D Number</div>
+                  <div className="flex items-center gap-1.5 text-[9px] text-white/40 tabular-nums"
+                    style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                    {customization.kdrColor ? customization.kdrColor.toUpperCase() : "default"}
+                    {customization.kdrColor && (
+                      <button onClick={() => updateCustom({ kdrColor: "" })}
+                        className="text-white/40 hover:text-white" aria-label="reset">×</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2291,7 +2528,8 @@ export default function WidgetStudio() {
           isAdmin={isAdmin}
           setIsAdmin={saveIsAdmin}
           unlockedIds={unlockedIds}
-          clearUnlocks={clearUnlocks} />
+          clearUnlocks={clearUnlocks}
+          sharedTemplates={SHARED_TEMPLATES} />
       )}
 
       {paywallTemplate && (
